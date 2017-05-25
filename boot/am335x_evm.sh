@@ -20,7 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-#Based off:
+#https://github.com/sanchox/boot-scripts/blob/master/boot/am335x_evm.sh
+#https://github.com/RobertCNelson/boot-scripts/blob/master/boot/am335x_evm.sh
 #https://github.com/beagleboard/meta-beagleboard/blob/master/meta-beagleboard-extras/recipes-support/usb-gadget/gadget-init/g-ether-load.sh
 
 disable_connman_dnsproxy () {
@@ -645,16 +646,23 @@ kernel_minor=$(uname -r | cut -d. -f2 || true)
 compare_major="4"
 compare_minor="4"
 
-if [ "${kernel_major}" -lt "${compare_major}" ] ; then
-	use_old_g_multi
-elif [ "${kernel_major}" -eq "${compare_major}" ] ; then
-	if [ "${kernel_minor}" -lt "${compare_minor}" ] ; then
+usb_client="disable"
+
+if [ "x${usb_client}" = "xenable" ] ; then
+	if [ "${kernel_major}" -lt "${compare_major}" ] ; then
 		use_old_g_multi
+	elif [ "${kernel_major}" -eq "${compare_major}" ] ; then
+		if [ "${kernel_minor}" -lt "${compare_minor}" ] ; then
+			use_old_g_multi
+		else
+			use_libcomposite
+		fi
 	else
 		use_libcomposite
 	fi
 else
-	use_libcomposite
+	unset usb0 usb1
+	unset dnsmasq_usb0_usb1
 fi
 
 if [ -f /var/lib/misc/dnsmasq.leases ] ; then
@@ -710,9 +718,13 @@ if [ "x${dnsmasq_usb0_usb1}" = "xenabled" ] ; then
 	fi
 fi
 
-if [ -d /sys/class/tty/ttyGS0/ ] ; then
-	echo "${log} Starting serial-getty@ttyGS0.service"
-	systemctl start serial-getty@ttyGS0.service || true
+ttyGS0="disable"
+
+if [ "x${ttyGS0}" = "xenable" ] ; then
+	if [ -d /sys/class/tty/ttyGS0/ ] ; then
+		echo "${log} Starting serial-getty@ttyGS0.service"
+		systemctl start serial-getty@ttyGS0.service || true
+	fi
 fi
 
 #create_ap is now legacy, use connman...
